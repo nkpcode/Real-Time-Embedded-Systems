@@ -1,3 +1,10 @@
+/*
+	Solar-Tracking System using STM32F4 Discovery board
+	•Used STM32F4 Discovery board to sense and effect change in orientation based on light exposure on two arrays of LDRs
+	•Developed the source code to Interface and integrate the sensors and actuators
+
+*/
+
 #include "stm32f4xx.h"
 #include "stm32f4xx_rcc.h"
 #include "stm32f4xx_gpio.h"
