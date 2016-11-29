@@ -1,2 +1,2 @@
 # Real-Time-Embedded-Systems
-Projects involving Real Time Embedded Systems
+STM32F4 Discovery board assignments
