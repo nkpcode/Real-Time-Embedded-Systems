@@ -237,7 +237,9 @@ void OS_Suspend(void){
 void OS_Sleep(uint32_t sleepTime){
 // ****IMPLEMENT THIS****
 // set sleep parameter in TCB
+  RunPt -> Sleep = sleepTime;
 // suspend, stops running
+  OS_Suspend();
 }
 
 // ******** OS_InitSemaphore ************
@@ -247,6 +249,7 @@ void OS_Sleep(uint32_t sleepTime){
 // Outputs: none
 void OS_InitSemaphore(int32_t *semaPt, int32_t value){
 //***IMPLEMENT THIS***
+  *semaPt = value;
 }
 
 // ******** OS_Wait ************
@@ -257,6 +260,17 @@ void OS_InitSemaphore(int32_t *semaPt, int32_t value){
 // Outputs: none
 void OS_Wait(int32_t *semaPt){
 //***IMPLEMENT THIS***
+  DisableInterrupts();    
+  *semaPt = *semaPt - 1;   
+  if(*semaPt < 0)
+  {
+    RunPt->blocked = semaPt;/* address of semaphore that is blocking the thread */
+    EnableInterrupts();
+    /* Restart Systick timer */
+    OS_Suspend();
+  }  
+  EnableInterrupts();
+
 }
 
 // ******** OS_Signal ************
@@ -267,6 +281,25 @@ void OS_Wait(int32_t *semaPt){
 // Outputs: none
 void OS_Signal(int32_t *semaPt){
 //***IMPLEMENT THIS***
+  tcbType *tempPt =  RunPt;
+  DisableInterrupts();
+
+  *semaPt = *semaPt + 1;
+  if(*semaPt <= 0)
+  {/* If value of semaphore is non-negative then one thread can be un-blocked */
+    while(true)
+    {
+      tempPt = tempPt->next;
+      if(tempPt->blocked == semaPt)
+      {/* If blocking on this semaphore */
+        tempPt->blocked = NULL;
+        break;
+      }      
+    }
+  }  
+
+  EnableInterrupts();
+
 }
 
 #define FSIZE 10    // can be any size
@@ -283,6 +316,10 @@ uint32_t LostData;  // number of lost pieces of data
 // Outputs: none
 void OS_FIFO_Init(void){
 //***IMPLEMENT THIS***
+  PutI = 0;
+  GetI = 0;
+  OS_InitSemaphore(*CurrentSize,0);
+  LostData = 0;
 }
 
 // ******** OS_FIFO_Put ************
@@ -293,9 +330,18 @@ void OS_FIFO_Init(void){
 // Outputs: 0 if successful, -1 if the FIFO is full
 int OS_FIFO_Put(uint32_t data){
 //***IMPLEMENT THIS***
-
-  return 0;   // success
-
+  if(CurrentSize >= FSIZE)
+  {
+    LostData = LostData + 1;
+    return -1;
+  }  
+  else
+  {
+    Fifo[PutI] = data;
+    PutI = (PutI + 1)%FSIZE;
+    OS_Signal(&CurrentSize);
+    return 0;   // success
+  }
 }
 
 // ******** OS_FIFO_Get ************
@@ -306,7 +352,9 @@ int OS_FIFO_Put(uint32_t data){
 // Outputs: data retrieved
 uint32_t OS_FIFO_Get(void){uint32_t data;
 //***IMPLEMENT THIS***
-
+  OS_Wait(&CurrentSize);/* blocks thread if no data available */
+  data = Fifo[GetI];
+  GetI = (GetI + 1)%FSIZE;
   return data;
 }
 
